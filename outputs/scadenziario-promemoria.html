@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scadenziario e Promemoria</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes overduePulse {
+      0%, 100% { background-color: #fff1f2; }
+      50% { background-color: #fecdd3; }
+    }
+
+    .overdue-alert {
+      animation: overduePulse 1s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-zinc-100 text-zinc-900">
+  <main class="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-8 sm:px-6">
+    <section class="mb-8">
+      <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Scadenziario</h1>
+      <p class="mt-2 text-sm text-zinc-600">Promemoria salvati nel browser e ordinati per scadenza.</p>
+    </section>
+
+    <section class="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+      <form id="reminderForm" class="grid gap-4">
+        <div>
+          <label for="reminderText" class="mb-1 block text-sm font-medium text-zinc-700">Promemoria</label>
+          <div class="flex gap-2">
+            <input
+              id="reminderText"
+              type="text"
+              placeholder="Es. Pagare bolletta luce"
+              class="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+              required
+            />
+            <button
+              id="voiceButton"
+              type="button"
+              class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-700 transition hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-200 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Detta promemoria"
+              title="Detta promemoria"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <path d="M12 19v3"></path>
+              </svg>
+            </button>
+          </div>
+          <p id="voiceStatus" class="mt-1 text-xs text-zinc-500" aria-live="polite"></p>
+        </div>
+
+        <div>
+          <label for="reminderDateTime" class="mb-1 block text-sm font-medium text-zinc-700">Data e ora</label>
+          <input
+            id="reminderDateTime"
+            type="datetime-local"
+            class="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+            required
+          />
+        </div>
+
+        <button
+          type="submit"
+          class="inline-flex h-10 items-center justify-center rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-300"
+        >
+          Salva
+        </button>
+      </form>
+    </section>
+
+    <nav class="mt-8 flex rounded-lg border border-zinc-200 bg-white p-1 shadow-sm" aria-label="Viste">
+      <button
+        id="listTab"
+        type="button"
+        class="flex-1 rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition"
+      >
+        Vista Lista
+      </button>
+      <button
+        id="calendarTab"
+        type="button"
+        class="flex-1 rounded-md px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100"
+      >
+        Vista Calendario
+      </button>
+    </nav>
+
+    <section id="listView" class="mt-6">
+      <div class="mb-3 flex items-center justify-between gap-3">
+        <h2 class="text-lg font-semibold">Cockpit operativo</h2>
+        <span id="counter" class="text-sm text-zinc-500">0 elementi</span>
+      </div>
+
+      <div class="grid gap-4 lg:grid-cols-4">
+        <section data-drop-bucket="today" class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+          <div class="mb-3 flex items-center justify-between gap-2">
+            <h3 class="text-base font-semibold">Oggi</h3>
+            <span id="todayCount" class="text-xs font-medium text-zinc-500">0</span>
+          </div>
+          <ul id="todayList" class="grid gap-3"></ul>
+          <p id="todayEmpty" class="rounded-md border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-500">Nessun task per oggi.</p>
+        </section>
+
+        <section data-drop-bucket="tomorrow" class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+          <div class="mb-3 flex items-center justify-between gap-2">
+            <h3 class="text-base font-semibold">Domani</h3>
+            <span id="tomorrowCount" class="text-xs font-medium text-zinc-500">0</span>
+          </div>
+          <ul id="tomorrowList" class="grid gap-3"></ul>
+          <p id="tomorrowEmpty" class="rounded-md border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-500">Nessun task per domani.</p>
+        </section>
+
+        <section data-drop-bucket="upcoming" class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+          <div class="mb-3 flex items-center justify-between gap-2">
+            <h3 class="text-base font-semibold">In Arrivo</h3>
+            <span id="upcomingCount" class="text-xs font-medium text-zinc-500">0</span>
+          </div>
+          <ul id="upcomingList" class="grid gap-3"></ul>
+          <p id="upcomingEmpty" class="rounded-md border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-500">Nessun task in arrivo.</p>
+        </section>
+
+        <aside data-drop-bucket="brainDump" class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+          <div class="mb-3 flex items-center justify-between gap-2">
+            <h3 class="text-base font-semibold">Note Rapide</h3>
+            <span id="brainDumpCount" class="text-xs font-medium text-zinc-500">0</span>
+          </div>
+          <form id="brainDumpForm" class="mb-3">
+            <label for="brainDumpInput" class="sr-only">Note Rapide Brain Dump</label>
+            <input
+              id="brainDumpInput"
+              type="text"
+              placeholder="Scrivi e premi Invio"
+              class="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+            />
+          </form>
+          <ul id="brainDumpList" class="grid gap-3"></ul>
+          <p id="brainDumpEmpty" class="rounded-md border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-500">Nessuna nota rapida.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section id="calendarView" class="mt-6 hidden">
+      <div class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 id="calendarTitle" class="text-lg font-semibold">Calendario</h2>
+          <div class="flex gap-2">
+            <button
+              id="prevMonth"
+              type="button"
+              class="h-9 w-9 rounded-md border border-zinc-300 bg-white text-lg font-semibold text-zinc-700 transition hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-200"
+              aria-label="Mese precedente"
+            >
+              &lt;
+            </button>
+            <button
+              id="nextMonth"
+              type="button"
+              class="h-9 w-9 rounded-md border border-zinc-300 bg-white text-lg font-semibold text-zinc-700 transition hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-200"
+              aria-label="Mese successivo"
+            >
+              &gt;
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-7 border-l border-t border-zinc-200 text-center text-xs font-semibold uppercase text-zinc-500">
+          <div class="border-b border-r border-zinc-200 px-2 py-2">Lun</div>
+          <div class="border-b border-r border-zinc-200 px-2 py-2">Mar</div>
+          <div class="border-b border-r border-zinc-200 px-2 py-2">Mer</div>
+          <div class="border-b border-r border-zinc-200 px-2 py-2">Gio</div>
+          <div class="border-b border-r border-zinc-200 px-2 py-2">Ven</div>
+          <div class="border-b border-r border-zinc-200 px-2 py-2">Sab</div>
+          <div class="border-b border-r border-zinc-200 px-2 py-2">Dom</div>
+        </div>
+        <div id="calendarGrid" class="grid grid-cols-7 border-l border-zinc-200"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="dayModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-zinc-950/50 px-4">
+    <section class="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl">
+      <div class="mb-4 flex items-start justify-between gap-3">
+        <h2 id="modalTitle" class="text-lg font-semibold">Impegni</h2>
+        <button
+          id="closeModal"
+          type="button"
+          class="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-200"
+        >
+          Chiudi
+        </button>
+      </div>
+      <ul id="modalTaskList" class="grid gap-3"></ul>
+    </section>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "scadenziarioPromemoria";
+
+    const form = document.getElementById("reminderForm");
+    const textInput = document.getElementById("reminderText");
+    const dateTimeInput = document.getElementById("reminderDateTime");
+    const voiceButton = document.getElementById("voiceButton");
+    const voiceStatus = document.getElementById("voiceStatus");
+    const counter = document.getElementById("counter");
+    const brainDumpForm = document.getElementById("brainDumpForm");
+    const brainDumpInput = document.getElementById("brainDumpInput");
+    const listTab = document.getElementById("listTab");
+    const calendarTab = document.getElementById("calendarTab");
+    const listView = document.getElementById("listView");
+    const calendarView = document.getElementById("calendarView");
+    const calendarTitle = document.getElementById("calendarTitle");
+    const calendarGrid = document.getElementById("calendarGrid");
+    const prevMonthButton = document.getElementById("prevMonth");
+    const nextMonthButton = document.getElementById("nextMonth");
+    const dayModal = document.getElementById("dayModal");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalTaskList = document.getElementById("modalTaskList");
+    const closeModal = document.getElementById("closeModal");
+    const columns = {
+      today: {
+        list: document.getElementById("todayList"),
+        empty: document.getElementById("todayEmpty"),
+        count: document.getElementById("todayCount")
+      },
+      tomorrow: {
+        list: document.getElementById("tomorrowList"),
+        empty: document.getElementById("tomorrowEmpty"),
+        count: document.getElementById("tomorrowCount")
+      },
+      upcoming: {
+        list: document.getElementById("upcomingList"),
+        empty: document.getElementById("upcomingEmpty"),
+        count: document.getElementById("upcomingCount")
+      },
+      brainDump: {
+        list: document.getElementById("brainDumpList"),
+        empty: document.getElementById("brainDumpEmpty"),
+        count: document.getElementById("brainDumpCount")
+      }
+    };
+
+    let reminders = loadReminders();
+    let audioContext;
+    let planningReminderId = null;
+    let activeView = "list";
+    let calendarDate = new Date();
+    let calendarClickTimer = null;
+    let draggedReminderId = null;
+    let recognition = null;
+    let isListening = false;
+    let voiceBaseText = "";
+
+    function loadReminders() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveReminders() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
+    }
+
+    function sortReminders() {
+      reminders.sort((a, b) => {
+        if (!a.dateTime && !b.dateTime) return 0;
+        if (!a.dateTime) return 1;
+        if (!b.dateTime) return -1;
+        return new Date(a.dateTime) - new Date(b.dateTime);
+      });
+    }
+
+    function formatDateTime(value) {
+      return new Intl.DateTimeFormat("it-IT", {
+        dateStyle: "full",
+        timeStyle: "short"
+      }).format(new Date(value));
+    }
+
+    function isOverdue(reminder) {
+      return reminder.dateTime && !reminder.completed && new Date(reminder.dateTime) <= new Date();
+    }
+
+    function getDateOnly(date) {
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+
+    function getReminderBucket(reminder) {
+      if (!reminder.dateTime) return "brainDump";
+
+      const dueDate = getDateOnly(new Date(reminder.dateTime));
+      const today = getDateOnly(new Date());
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      if (dueDate.getTime() === today.getTime()) return "today";
+      if (dueDate.getTime() === tomorrow.getTime()) return "tomorrow";
+      if (dueDate > tomorrow) return "upcoming";
+      return "today";
+    }
+
+    function ensureAudioContext() {
+      const AudioCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtor) return null;
+
+      if (!audioContext) {
+        audioContext = new AudioCtor();
+      }
+
+      if (audioContext.state === "suspended") {
+        audioContext.resume();
+      }
+
+      return audioContext;
+    }
+
+    function playNotificationSound() {
+      const context = ensureAudioContext();
+      if (!context) return;
+
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, context.currentTime);
+      oscillator.frequency.setValueAtTime(660, context.currentTime + 0.12);
+
+      gain.gain.setValueAtTime(0.001, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.28);
+
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.3);
+    }
+
+    function setupSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        voiceButton.disabled = true;
+        voiceStatus.textContent = "Dettatura non supportata da questo browser.";
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = "it-IT";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.addEventListener("start", () => {
+        isListening = true;
+        voiceBaseText = textInput.value.trim();
+        voiceButton.classList.add("border-rose-300", "bg-rose-50", "text-rose-700");
+        voiceStatus.textContent = "Sto ascoltando...";
+      });
+
+      recognition.addEventListener("result", (event) => {
+        let interimText = "";
+        let finalText = "";
+
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+          const transcript = event.results[index][0].transcript.trim();
+
+          if (event.results[index].isFinal) {
+            finalText += `${transcript} `;
+          } else {
+            interimText += `${transcript} `;
+          }
+        }
+
+        if (finalText) {
+          voiceBaseText = [voiceBaseText, finalText.trim()].filter(Boolean).join(" ");
+        }
+
+        textInput.value = [voiceBaseText, interimText.trim()].filter(Boolean).join(" ");
+      });
+
+      recognition.addEventListener("error", (event) => {
+        voiceStatus.textContent = event.error === "not-allowed"
+          ? "Accesso al microfono non consentito."
+          : "Dettatura interrotta. Riprova.";
+      });
+
+      recognition.addEventListener("end", () => {
+        isListening = false;
+        voiceButton.classList.remove("border-rose-300", "bg-rose-50", "text-rose-700");
+
+        if (voiceStatus.textContent === "Sto ascoltando...") {
+          voiceStatus.textContent = "";
+        }
+      });
+    }
+
+    function toggleSpeechRecognition() {
+      if (!recognition) return;
+
+      if (isListening) {
+        recognition.stop();
+        return;
+      }
+
+      textInput.focus();
+      voiceStatus.textContent = "Richiesta accesso al microfono...";
+
+      try {
+        recognition.start();
+      } catch {
+        voiceStatus.textContent = "Dettatura gia' attiva.";
+      }
+    }
+
+    function completeReminder(id) {
+      reminders = reminders.map((reminder) => {
+        if (reminder.id !== id) return reminder;
+        return { ...reminder, completed: true, alerted: true };
+      });
+
+      saveReminders();
+      renderApp();
+    }
+
+    function postponeReminder(id) {
+      reminders = reminders.map((reminder) => {
+        if (reminder.id !== id) return reminder;
+
+        const now = new Date();
+        const currentDate = new Date(reminder.dateTime);
+        const nextDate = currentDate > now ? currentDate : now;
+        nextDate.setMinutes(nextDate.getMinutes() + 15);
+
+        return {
+          ...reminder,
+          dateTime: toDateTimeLocalValue(nextDate),
+          completed: false,
+          alerted: false
+        };
+      });
+
+      saveReminders();
+      renderApp();
+    }
+
+    function scheduleReminder(id, dateTime) {
+      reminders = reminders.map((reminder) => {
+        if (reminder.id !== id) return reminder;
+        return {
+          ...reminder,
+          dateTime,
+          completed: false,
+          alerted: false
+        };
+      });
+
+      planningReminderId = null;
+      saveReminders();
+      renderApp();
+    }
+
+    function moveReminderToBucket(id, bucket) {
+      const targetDate = getBucketDate(bucket);
+      moveReminderToDate(id, targetDate);
+    }
+
+    function moveReminderToDate(id, targetDate) {
+      reminders = reminders.map((reminder) => {
+        if (reminder.id !== id) return reminder;
+
+        if (!targetDate) {
+          return {
+            ...reminder,
+            dateTime: null,
+            completed: false,
+            alerted: false
+          };
+        }
+
+        const movedDate = applyReminderTime(targetDate, reminder.dateTime);
+        return {
+          ...reminder,
+          dateTime: toDateTimeLocalValue(movedDate),
+          completed: false,
+          alerted: false
+        };
+      });
+
+      draggedReminderId = null;
+      saveReminders();
+      renderApp();
+    }
+
+    function getBucketDate(bucket) {
+      const date = new Date();
+      date.setSeconds(0, 0);
+
+      if (bucket === "brainDump") return null;
+      if (bucket === "tomorrow") {
+        date.setDate(date.getDate() + 1);
+      }
+      if (bucket === "upcoming") {
+        date.setDate(date.getDate() + 2);
+      }
+
+      return date;
+    }
+
+    function applyReminderTime(targetDate, sourceDateTime) {
+      const result = new Date(targetDate);
+      const fallback = new Date();
+      const source = sourceDateTime ? new Date(sourceDateTime) : fallback;
+
+      result.setHours(source.getHours(), source.getMinutes(), 0, 0);
+      return result;
+    }
+
+    function toDateTimeLocalValue(date) {
+      const pad = (value) => String(value).padStart(2, "0");
+
+      return [
+        date.getFullYear(),
+        pad(date.getMonth() + 1),
+        pad(date.getDate())
+      ].join("-") + "T" + [
+        pad(date.getHours()),
+        pad(date.getMinutes())
+      ].join(":");
+    }
+
+    function toDateKey(date) {
+      const pad = (value) => String(value).padStart(2, "0");
+      return [
+        date.getFullYear(),
+        pad(date.getMonth() + 1),
+        pad(date.getDate())
+      ].join("-");
+    }
+
+    function getTasksForDate(date) {
+      const key = toDateKey(date);
+      return reminders.filter((reminder) => {
+        return reminder.dateTime && toDateKey(new Date(reminder.dateTime)) === key;
+      });
+    }
+
+    function renderApp() {
+      renderReminders();
+      renderCalendar();
+    }
+
+    function setActiveView(view) {
+      activeView = view;
+      const isList = activeView === "list";
+
+      listView.classList.toggle("hidden", !isList);
+      calendarView.classList.toggle("hidden", isList);
+
+      listTab.className = isList
+        ? "flex-1 rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition"
+        : "flex-1 rounded-md px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100";
+      calendarTab.className = !isList
+        ? "flex-1 rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition"
+        : "flex-1 rounded-md px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100";
+
+      if (!isList) {
+        renderCalendar();
+      }
+    }
+
+    function renderReminders() {
+      sortReminders();
+      const groups = {
+        today: [],
+        tomorrow: [],
+        upcoming: [],
+        brainDump: []
+      };
+
+      Object.values(columns).forEach((column) => {
+        column.list.innerHTML = "";
+      });
+
+      reminders.forEach((reminder) => {
+        groups[getReminderBucket(reminder)].push(reminder);
+      });
+
+      counter.textContent = `${reminders.length} ${reminders.length === 1 ? "elemento" : "elementi"}`;
+
+      Object.entries(groups).forEach(([bucket, bucketReminders]) => {
+        const column = columns[bucket];
+        column.empty.classList.toggle("hidden", bucketReminders.length > 0);
+        column.count.textContent = bucketReminders.length;
+
+        bucketReminders.forEach((reminder) => {
+          column.list.appendChild(createReminderItem(reminder, bucket === "brainDump"));
+        });
+      });
+    }
+
+    function createReminderItem(reminder, isBrainDump) {
+        const overdue = isOverdue(reminder);
+        const item = document.createElement("li");
+        item.className = [
+          "rounded-lg border p-4 shadow-sm transition",
+          overdue ? "overdue-alert border-rose-300" : "border-zinc-200 bg-white",
+          reminder.completed ? "bg-zinc-50 opacity-65" : ""
+        ].join(" ");
+        makeReminderDraggable(item, reminder.id);
+
+        const header = document.createElement("div");
+        header.className = "flex flex-wrap items-start justify-between gap-3";
+
+        const date = document.createElement("time");
+        date.className = overdue ? "block text-sm font-semibold text-rose-800" : "block text-sm font-medium text-teal-700";
+        if (reminder.dateTime) {
+          date.dateTime = reminder.dateTime;
+          date.textContent = formatDateTime(reminder.dateTime);
+        } else {
+          date.textContent = "Senza data";
+        }
+
+        const status = document.createElement("span");
+        status.className = [
+          "rounded-full px-2 py-1 text-xs font-semibold",
+          reminder.completed ? "bg-zinc-200 text-zinc-700" : overdue ? "bg-rose-700 text-white" : reminder.dateTime ? "bg-teal-100 text-teal-800" : "bg-amber-100 text-amber-800"
+        ].join(" ");
+        status.textContent = reminder.completed ? "Completato" : overdue ? "Scaduto" : reminder.dateTime ? "Attivo" : "Nota";
+
+        const text = document.createElement("p");
+        text.className = [
+          "mt-2 break-words text-base",
+          reminder.completed ? "text-zinc-500 line-through" : overdue ? "font-semibold text-rose-950" : "text-zinc-900"
+        ].join(" ");
+        text.textContent = reminder.text;
+
+        header.append(date, status);
+        item.append(header, text);
+
+        if (!reminder.completed) {
+          const actions = document.createElement("div");
+          actions.className = "mt-3 flex flex-wrap gap-2";
+
+          const completeButton = document.createElement("button");
+          completeButton.type = "button";
+          completeButton.className = "rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-200";
+          completeButton.textContent = "Spunta/Fatto";
+          completeButton.addEventListener("click", () => completeReminder(reminder.id));
+
+          actions.appendChild(completeButton);
+
+          if (isBrainDump) {
+            const planButton = document.createElement("button");
+            planButton.type = "button";
+            planButton.className = "rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-300";
+            planButton.textContent = "Pianifica";
+            planButton.addEventListener("click", () => {
+              planningReminderId = reminder.id;
+              renderApp();
+            });
+            actions.appendChild(planButton);
+          } else {
+            const postponeButton = document.createElement("button");
+            postponeButton.type = "button";
+            postponeButton.className = "rounded-md bg-teal-700 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-300";
+            postponeButton.textContent = "+15 Minuti";
+            postponeButton.addEventListener("click", () => postponeReminder(reminder.id));
+            actions.appendChild(postponeButton);
+          }
+
+          item.appendChild(actions);
+
+          if (isBrainDump && planningReminderId === reminder.id) {
+            item.appendChild(createPlanner(reminder.id));
+          }
+        }
+
+        return item;
+    }
+
+    function makeReminderDraggable(element, reminderId) {
+      element.draggable = true;
+      element.dataset.reminderId = reminderId;
+      element.addEventListener("dragstart", (event) => {
+        draggedReminderId = reminderId;
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", reminderId);
+        element.classList.add("opacity-50");
+      });
+      element.addEventListener("dragend", () => {
+        draggedReminderId = null;
+        element.classList.remove("opacity-50");
+      });
+    }
+
+    function renderCalendar() {
+      if (!calendarGrid) return;
+
+      calendarGrid.innerHTML = "";
+
+      const year = calendarDate.getFullYear();
+      const month = calendarDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const mondayBasedOffset = (firstDay.getDay() + 6) % 7;
+      const cellsCount = Math.ceil((mondayBasedOffset + lastDay.getDate()) / 7) * 7;
+
+      calendarTitle.textContent = new Intl.DateTimeFormat("it-IT", {
+        month: "long",
+        year: "numeric"
+      }).format(firstDay);
+
+      for (let index = 0; index < cellsCount; index += 1) {
+        const dayNumber = index - mondayBasedOffset + 1;
+        const cellDate = new Date(year, month, dayNumber);
+        const isCurrentMonth = cellDate.getMonth() === month;
+        const dayTasks = isCurrentMonth ? getTasksForDate(cellDate) : [];
+        const activeTasks = dayTasks.filter((reminder) => !reminder.completed);
+        const completedTasks = dayTasks.length - activeTasks.length;
+        const isToday = toDateKey(cellDate) === toDateKey(new Date());
+
+        const cell = document.createElement("div");
+        cell.role = "button";
+        cell.tabIndex = isCurrentMonth ? 0 : -1;
+        cell.className = [
+          "min-h-28 border-b border-r border-zinc-200 p-2 text-left align-top transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-300",
+          isCurrentMonth ? "bg-white hover:bg-zinc-50" : "bg-zinc-50 text-zinc-300",
+          dayTasks.length > 0 ? "cursor-pointer" : "cursor-default",
+          isToday && isCurrentMonth ? "ring-2 ring-inset ring-teal-500" : ""
+        ].join(" ");
+
+        const dayLabel = document.createElement("span");
+        dayLabel.className = "block text-sm font-semibold";
+        dayLabel.textContent = isCurrentMonth ? cellDate.getDate() : "";
+        cell.appendChild(dayLabel);
+
+        if (dayTasks.length > 0) {
+          const preview = document.createElement("div");
+          preview.className = "mt-3 grid gap-1";
+
+          dayTasks.slice(0, 3).forEach((task) => {
+            const taskTitle = document.createElement("div");
+            taskTitle.className = [
+              "block truncate rounded px-2 py-1 text-xs font-medium",
+              task.completed ? "bg-zinc-100 text-zinc-500 line-through" : "bg-teal-100 text-teal-900"
+            ].join(" ");
+            taskTitle.textContent = task.text;
+            taskTitle.dataset.calendarTask = "true";
+            makeReminderDraggable(taskTitle, task.id);
+            preview.appendChild(taskTitle);
+          });
+
+          if (dayTasks.length > 3) {
+            const count = document.createElement("span");
+            count.className = "flex items-center gap-1 text-xs text-zinc-500";
+            count.innerHTML = `<span class="h-2 w-2 rounded-full bg-teal-600"></span>+${dayTasks.length - 3} altri`;
+            preview.appendChild(count);
+          }
+
+          if (completedTasks > 0) {
+            const done = document.createElement("span");
+            done.className = "text-xs text-zinc-400";
+            done.textContent = `${completedTasks} completati`;
+            preview.appendChild(done);
+          }
+
+          cell.appendChild(preview);
+          cell.addEventListener("click", (event) => {
+            if (event.target.closest("[data-calendar-task]")) return;
+            calendarClickTimer = setTimeout(() => {
+              openDayModal(cellDate);
+              calendarClickTimer = null;
+            }, 180);
+          });
+        }
+
+        if (isCurrentMonth) {
+          cell.addEventListener("dragover", (event) => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            cell.classList.add("bg-teal-50");
+          });
+          cell.addEventListener("dragleave", () => {
+            cell.classList.remove("bg-teal-50");
+          });
+          cell.addEventListener("drop", (event) => {
+            event.preventDefault();
+            cell.classList.remove("bg-teal-50");
+            const reminderId = event.dataTransfer.getData("text/plain") || draggedReminderId;
+            if (reminderId) {
+              moveReminderToDate(reminderId, cellDate);
+            }
+          });
+          cell.addEventListener("dblclick", () => {
+            if (calendarClickTimer) {
+              clearTimeout(calendarClickTimer);
+              calendarClickTimer = null;
+            }
+            fillFormFromCalendar(cellDate);
+          });
+        }
+
+        calendarGrid.appendChild(cell);
+      }
+    }
+
+    function fillFormFromCalendar(date) {
+      const selectedDate = new Date(date);
+      const now = new Date();
+      selectedDate.setHours(now.getHours(), now.getMinutes(), 0, 0);
+      dateTimeInput.value = toDateTimeLocalValue(selectedDate);
+      textInput.focus();
+      setActiveView("list");
+    }
+
+    function openDayModal(date) {
+      const dayTasks = getTasksForDate(date);
+      if (dayTasks.length === 0) return;
+
+      modalTitle.textContent = new Intl.DateTimeFormat("it-IT", {
+        dateStyle: "full"
+      }).format(date);
+      modalTaskList.innerHTML = "";
+
+      dayTasks.forEach((reminder) => {
+        const item = document.createElement("li");
+        item.className = "rounded-lg border border-zinc-200 p-4";
+
+        const time = document.createElement("time");
+        time.className = "block text-sm font-medium text-teal-700";
+        time.dateTime = reminder.dateTime;
+        time.textContent = new Intl.DateTimeFormat("it-IT", {
+          timeStyle: "short"
+        }).format(new Date(reminder.dateTime));
+
+        const text = document.createElement("p");
+        text.className = [
+          "mt-2 break-words text-base",
+          reminder.completed ? "text-zinc-500 line-through" : "text-zinc-900"
+        ].join(" ");
+        text.textContent = reminder.text;
+
+        item.append(time, text);
+
+        if (!reminder.completed) {
+          const doneButton = document.createElement("button");
+          doneButton.type = "button";
+          doneButton.className = "mt-3 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-200";
+          doneButton.textContent = "Segna completato";
+          doneButton.addEventListener("click", () => {
+            completeReminder(reminder.id);
+            openDayModal(date);
+          });
+          item.appendChild(doneButton);
+        }
+
+        modalTaskList.appendChild(item);
+      });
+
+      dayModal.classList.remove("hidden");
+      dayModal.classList.add("flex");
+    }
+
+    function closeDayModal() {
+      dayModal.classList.add("hidden");
+      dayModal.classList.remove("flex");
+    }
+
+    function setupColumnDropTargets() {
+      document.querySelectorAll("[data-drop-bucket]").forEach((target) => {
+        target.addEventListener("dragover", (event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          target.classList.add("ring-2", "ring-teal-300");
+        });
+
+        target.addEventListener("dragleave", (event) => {
+          if (!target.contains(event.relatedTarget)) {
+            target.classList.remove("ring-2", "ring-teal-300");
+          }
+        });
+
+        target.addEventListener("drop", (event) => {
+          event.preventDefault();
+          target.classList.remove("ring-2", "ring-teal-300");
+
+          const reminderId = event.dataTransfer.getData("text/plain") || draggedReminderId;
+          const bucket = target.dataset.dropBucket;
+          if (reminderId && bucket) {
+            moveReminderToBucket(reminderId, bucket);
+          }
+        });
+      });
+    }
+
+    function createPlanner(id) {
+      const planner = document.createElement("form");
+      planner.className = "mt-3 grid gap-2";
+
+      const input = document.createElement("input");
+      input.type = "datetime-local";
+      input.required = true;
+      input.className = "w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100";
+
+      const saveButton = document.createElement("button");
+      saveButton.type = "submit";
+      saveButton.className = "rounded-md bg-teal-700 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-300";
+      saveButton.textContent = "Salva data";
+
+      planner.append(input, saveButton);
+      planner.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (!input.value) return;
+        scheduleReminder(id, input.value);
+      });
+
+      setTimeout(() => input.focus(), 0);
+      return planner;
+    }
+
+    function checkExpiredReminders() {
+      let shouldSave = false;
+
+      reminders.forEach((reminder) => {
+        if (isOverdue(reminder) && !reminder.alerted) {
+          reminder.alerted = true;
+          shouldSave = true;
+          playNotificationSound();
+        }
+      });
+
+      if (shouldSave) {
+        saveReminders();
+        renderApp();
+      }
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      ensureAudioContext();
+
+      const text = textInput.value.trim();
+      const dateTime = dateTimeInput.value;
+
+      if (!text || !dateTime) return;
+
+      reminders.push({
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        text,
+        dateTime,
+        completed: false,
+        alerted: false
+      });
+
+      saveReminders();
+      renderApp();
+      form.reset();
+      textInput.focus();
+    });
+
+    function addBrainDumpReminder() {
+      const text = brainDumpInput.value.trim();
+      if (!text) return false;
+
+      reminders.push({
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        text,
+        dateTime: null,
+        completed: false,
+        alerted: false
+      });
+
+      saveReminders();
+      renderApp();
+      brainDumpForm.reset();
+      brainDumpInput.focus();
+      return true;
+    }
+
+    brainDumpForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      addBrainDumpReminder();
+    });
+
+    brainDumpInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      addBrainDumpReminder();
+    });
+
+    voiceButton.addEventListener("click", toggleSpeechRecognition);
+
+    listTab.addEventListener("click", () => setActiveView("list"));
+    calendarTab.addEventListener("click", () => setActiveView("calendar"));
+
+    prevMonthButton.addEventListener("click", () => {
+      calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1);
+      renderCalendar();
+    });
+
+    nextMonthButton.addEventListener("click", () => {
+      calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1);
+      renderCalendar();
+    });
+
+    closeModal.addEventListener("click", closeDayModal);
+    dayModal.addEventListener("click", (event) => {
+      if (event.target === dayModal) {
+        closeDayModal();
+      }
+    });
+
+    setupColumnDropTargets();
+    setupSpeechRecognition();
+    renderApp();
+    setInterval(checkExpiredReminders, 1000);
+  </script>
+</body>
+</html>
