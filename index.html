@@ -86,6 +86,13 @@
       >
         Vista Calendario
       </button>
+      <button
+        id="dashboardTab"
+        type="button"
+        class="flex-1 rounded-md px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100"
+      >
+        Dashboard
+      </button>
     </nav>
 
     <section id="listView" class="mt-6">
@@ -178,6 +185,46 @@
         <div id="calendarGrid" class="grid grid-cols-7 border-l border-zinc-200"></div>
       </div>
     </section>
+
+    <section id="dashboardView" class="mt-6 hidden">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Dashboard e Statistiche</h2>
+      </div>
+
+      <div class="mb-6 grid gap-4 sm:grid-cols-3">
+        <div class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+          <p class="text-sm font-medium text-zinc-500">Completati Oggi</p>
+          <p id="kpiCompletedToday" class="mt-1 text-3xl font-bold text-teal-700">0</p>
+        </div>
+        <div class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+          <p class="text-sm font-medium text-zinc-500">Da Completare Oggi</p>
+          <p id="kpiTodoToday" class="mt-1 text-3xl font-bold text-amber-600">0</p>
+        </div>
+        <div class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+          <p class="text-sm font-medium text-zinc-500">Tasso di Efficienza</p>
+          <p id="kpiEfficiency" class="mt-1 text-3xl font-bold text-indigo-600">0%</p>
+          <p class="mt-1 text-xs text-zinc-400">Task completati senza posticipi di giorno</p>
+        </div>
+      </div>
+
+      <div class="grid gap-6 lg:grid-cols-2">
+        <div class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+          <h3 class="mb-4 text-base font-semibold">Carico Settimanale</h3>
+          <div class="flex h-48 items-end gap-2 text-center text-xs text-zinc-600" id="weeklyChart"></div>
+        </div>
+
+        <div class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
+          <h3 class="mb-4 text-base font-semibold">Ripartizione Categorie automatiche</h3>
+          <div id="tagsChart" class="flex flex-col gap-3"></div>
+        </div>
+      </div>
+
+      <div class="mt-6 rounded-lg border border-rose-200 bg-rose-50 p-4 shadow-sm">
+        <h3 class="mb-1 text-base font-semibold text-rose-900">Task Incagliati</h3>
+        <p class="mb-4 text-sm text-rose-700">I task che sono stati rimandati al giorno dopo più volte.</p>
+        <ul id="stuckTasksList" class="grid gap-3"></ul>
+      </div>
+    </section>
   </main>
 
   <div id="dayModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-zinc-950/50 px-4">
@@ -209,8 +256,10 @@
     const brainDumpInput = document.getElementById("brainDumpInput");
     const listTab = document.getElementById("listTab");
     const calendarTab = document.getElementById("calendarTab");
+    const dashboardTab = document.getElementById("dashboardTab");
     const listView = document.getElementById("listView");
     const calendarView = document.getElementById("calendarView");
+    const dashboardView = document.getElementById("dashboardView");
     const calendarTitle = document.getElementById("calendarTitle");
     const calendarGrid = document.getElementById("calendarGrid");
     const prevMonthButton = document.getElementById("prevMonth");
@@ -418,7 +467,12 @@
     function completeReminder(id) {
       reminders = reminders.map((reminder) => {
         if (reminder.id !== id) return reminder;
-        return { ...reminder, completed: true, alerted: true };
+        return { 
+          ...reminder, 
+          completed: true, 
+          alerted: true,
+          completedAt: new Date().toISOString()
+        };
       });
 
       saveReminders();
@@ -449,11 +503,20 @@
     function scheduleReminder(id, dateTime) {
       reminders = reminders.map((reminder) => {
         if (reminder.id !== id) return reminder;
+
+        const oldDateStr = reminder.dateTime ? toDateKey(new Date(reminder.dateTime)) : null;
+        const newDateStr = toDateKey(new Date(dateTime));
+        let postponedDays = reminder.postponedDays || 0;
+        if (oldDateStr && newDateStr > oldDateStr) {
+          postponedDays += 1;
+        }
+
         return {
           ...reminder,
           dateTime,
           completed: false,
-          alerted: false
+          alerted: false,
+          postponedDays
         };
       });
 
@@ -481,11 +544,20 @@
         }
 
         const movedDate = applyReminderTime(targetDate, reminder.dateTime);
+        const oldDateStr = reminder.dateTime ? toDateKey(new Date(reminder.dateTime)) : null;
+        const newDateStr = toDateKey(movedDate);
+        
+        let postponedDays = reminder.postponedDays || 0;
+        if (oldDateStr && newDateStr > oldDateStr) {
+          postponedDays += 1;
+        }
+
         return {
           ...reminder,
           dateTime: toDateTimeLocalValue(movedDate),
           completed: false,
-          alerted: false
+          alerted: false,
+          postponedDays
         };
       });
 
@@ -555,19 +627,186 @@
     function setActiveView(view) {
       activeView = view;
       const isList = activeView === "list";
+      const isCalendar = activeView === "calendar";
+      const isDashboard = activeView === "dashboard";
 
       listView.classList.toggle("hidden", !isList);
-      calendarView.classList.toggle("hidden", isList);
+      calendarView.classList.toggle("hidden", !isCalendar);
+      dashboardView.classList.toggle("hidden", !isDashboard);
 
       listTab.className = isList
         ? "flex-1 rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition"
         : "flex-1 rounded-md px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100";
-      calendarTab.className = !isList
+      calendarTab.className = isCalendar
+        ? "flex-1 rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition"
+        : "flex-1 rounded-md px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100";
+      dashboardTab.className = isDashboard
         ? "flex-1 rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition"
         : "flex-1 rounded-md px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100";
 
-      if (!isList) {
+      if (isCalendar) {
         renderCalendar();
+      } else if (isDashboard) {
+        renderDashboard();
+      }
+    }
+
+    function categorizeTask(text) {
+      const lower = text.toLowerCase();
+      const categories = {
+        "Lavoro / Ufficio": ["riunione", "email", "cliente", "progetto", "presentazione", "fattura", "call", "ufficio", "report", "scadenza", "documento", "lavoro"],
+        "Casa / Commissioni": ["spesa", "pulire", "lavare", "casa", "bolletta", "banca", "posta", "spazzatura", "cane", "auto", "meccanico"],
+        "Salute / Sport": ["medico", "allenamento", "palestra", "corsa", "farmacia", "dottore", "analisi", "dentista", "visita"],
+        "Personale / Sociale": ["compleanno", "regalo", "chiamare", "cena", "amici", "ristorante", "cinema", "festa", "viaggio"]
+      };
+
+      for (const [category, keywords] of Object.entries(categories)) {
+        if (keywords.some(kw => lower.includes(kw))) {
+          return category;
+        }
+      }
+      return "Altro";
+    }
+
+    function renderDashboard() {
+      const todayStr = toDateKey(new Date());
+      let completedToday = 0;
+      let todoToday = 0;
+      let completedTotal = 0;
+      let completedEfficiently = 0;
+
+      const weeklyCounts = [0, 0, 0, 0, 0, 0, 0]; // Mon-Sun
+      const categoryCounts = {};
+
+      const now = new Date();
+      const dayOfWeek = now.getDay() || 7;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - dayOfWeek + 1);
+      const mondayStr = toDateKey(monday);
+
+      const stuckTasks = [];
+
+      reminders.forEach(task => {
+        const cat = categorizeTask(task.text);
+        if (!categoryCounts[cat]) categoryCounts[cat] = { total: 0, completed: 0 };
+        categoryCounts[cat].total++;
+        if (task.completed) categoryCounts[cat].completed++;
+
+        if (!task.completed && (task.postponedDays || 0) > 0) {
+          stuckTasks.push(task);
+        }
+
+        if (task.completed) {
+          completedTotal++;
+          if ((task.postponedDays || 0) === 0) completedEfficiently++;
+          
+          if (task.completedAt && task.completedAt.startsWith(todayStr)) {
+            completedToday++;
+          } else if (!task.completedAt && task.dateTime && task.dateTime.startsWith(todayStr)) {
+            completedToday++;
+          }
+        } else {
+          if (task.dateTime && task.dateTime.startsWith(todayStr)) {
+            todoToday++;
+          }
+        }
+
+        if (task.dateTime) {
+          const taskDate = new Date(task.dateTime);
+          const taskDateStr = toDateKey(taskDate);
+          const sunday = new Date(monday);
+          sunday.setDate(monday.getDate() + 6);
+          
+          if (taskDateStr >= mondayStr && taskDateStr <= toDateKey(sunday)) {
+            const dayIndex = (taskDate.getDay() + 6) % 7;
+            weeklyCounts[dayIndex]++;
+          }
+        }
+      });
+
+      document.getElementById("kpiCompletedToday").textContent = completedToday;
+      document.getElementById("kpiTodoToday").textContent = todoToday;
+      const efficiency = completedTotal === 0 ? 0 : Math.round((completedEfficiently / completedTotal) * 100);
+      document.getElementById("kpiEfficiency").textContent = efficiency + "%";
+
+      const maxWeekly = Math.max(...weeklyCounts, 1);
+      const daysLabels = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+      const weeklyChart = document.getElementById("weeklyChart");
+      weeklyChart.innerHTML = "";
+      
+      weeklyCounts.forEach((count, i) => {
+        const heightPct = (count / maxWeekly) * 100;
+        const col = document.createElement("div");
+        col.className = "flex flex-1 flex-col justify-end gap-2 h-full";
+        
+        const bar = document.createElement("div");
+        bar.className = "w-full rounded-t-sm bg-teal-600 transition-all";
+        bar.style.height = heightPct === 0 ? "2px" : heightPct + "%";
+        bar.title = `${count} task`;
+
+        const label = document.createElement("span");
+        label.textContent = daysLabels[i];
+        
+        col.append(bar, label);
+        weeklyChart.appendChild(col);
+      });
+
+      const tagsChart = document.getElementById("tagsChart");
+      tagsChart.innerHTML = "";
+      Object.entries(categoryCounts)
+        .sort((a, b) => b[1].total - a[1].total)
+        .forEach(([cat, data]) => {
+          const progressPct = data.total === 0 ? 0 : Math.round((data.completed / data.total) * 100);
+          
+          const wrap = document.createElement("div");
+          
+          const header = document.createElement("div");
+          header.className = "mb-1 flex justify-between text-sm";
+          
+          const title = document.createElement("span");
+          title.className = "font-medium text-zinc-700";
+          title.textContent = cat;
+          
+          const perc = document.createElement("span");
+          perc.className = "text-zinc-500";
+          perc.textContent = `${progressPct}% (${data.completed}/${data.total})`;
+          
+          header.append(title, perc);
+          
+          const barBg = document.createElement("div");
+          barBg.className = "h-2 w-full overflow-hidden rounded-full bg-zinc-200";
+          
+          const barFill = document.createElement("div");
+          barFill.className = "h-full bg-teal-500";
+          barFill.style.width = progressPct + "%";
+          
+          barBg.appendChild(barFill);
+          wrap.append(header, barBg);
+          tagsChart.appendChild(wrap);
+        });
+
+      const stuckList = document.getElementById("stuckTasksList");
+      stuckList.innerHTML = "";
+      const topStuck = stuckTasks.sort((a, b) => b.postponedDays - a.postponedDays).slice(0, 3);
+      
+      if (topStuck.length === 0) {
+        stuckList.innerHTML = `<li class="text-sm text-rose-600">Nessun task incagliato al momento! Ottimo lavoro.</li>`;
+      } else {
+        topStuck.forEach(task => {
+          const li = document.createElement("li");
+          li.className = "flex justify-between items-center bg-white p-3 rounded border border-rose-100";
+          
+          const span = document.createElement("span");
+          span.className = "truncate text-sm font-medium text-rose-900";
+          span.textContent = task.text;
+          
+          const badge = document.createElement("span");
+          badge.className = "shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-800";
+          badge.textContent = `Rimandato ${task.postponedDays} volte`;
+          
+          li.append(span, badge);
+          stuckList.appendChild(li);
+        });
       }
     }
 
@@ -995,6 +1234,7 @@
 
     listTab.addEventListener("click", () => setActiveView("list"));
     calendarTab.addEventListener("click", () => setActiveView("calendar"));
+    dashboardTab.addEventListener("click", () => setActiveView("dashboard"));
 
     prevMonthButton.addEventListener("click", () => {
       calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1);
