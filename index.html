@@ -93,6 +93,13 @@
       >
         Dashboard
       </button>
+      <button
+        id="ideasTab"
+        type="button"
+        class="flex-1 rounded-md px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100"
+      >
+        Idee
+      </button>
     </nav>
 
     <section id="listView" class="mt-6">
@@ -101,7 +108,7 @@
         <span id="counter" class="text-sm text-zinc-500">0 elementi</span>
       </div>
 
-      <div class="grid gap-4 lg:grid-cols-4">
+      <div class="grid gap-4 lg:grid-cols-3">
         <section data-drop-bucket="today" class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
           <div class="mb-3 flex items-center justify-between gap-2">
             <h3 class="text-base font-semibold">Oggi</h3>
@@ -128,24 +135,6 @@
           <ul id="upcomingList" class="grid gap-3"></ul>
           <p id="upcomingEmpty" class="rounded-md border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-500">Nessun task in arrivo.</p>
         </section>
-
-        <aside data-drop-bucket="brainDump" class="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-          <div class="mb-3 flex items-center justify-between gap-2">
-            <h3 class="text-base font-semibold">Note Rapide</h3>
-            <span id="brainDumpCount" class="text-xs font-medium text-zinc-500">0</span>
-          </div>
-          <form id="brainDumpForm" class="mb-3">
-            <label for="brainDumpInput" class="sr-only">Note Rapide Brain Dump</label>
-            <input
-              id="brainDumpInput"
-              type="text"
-              placeholder="Scrivi e premi Invio"
-              class="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
-            />
-          </form>
-          <ul id="brainDumpList" class="grid gap-3"></ul>
-          <p id="brainDumpEmpty" class="rounded-md border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-500">Nessuna nota rapida.</p>
-        </aside>
       </div>
     </section>
 
@@ -173,16 +162,20 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-7 border-l border-t border-zinc-200 text-center text-xs font-semibold uppercase text-zinc-500">
-          <div class="border-b border-r border-zinc-200 px-2 py-2">Lun</div>
-          <div class="border-b border-r border-zinc-200 px-2 py-2">Mar</div>
-          <div class="border-b border-r border-zinc-200 px-2 py-2">Mer</div>
-          <div class="border-b border-r border-zinc-200 px-2 py-2">Gio</div>
-          <div class="border-b border-r border-zinc-200 px-2 py-2">Ven</div>
-          <div class="border-b border-r border-zinc-200 px-2 py-2">Sab</div>
-          <div class="border-b border-r border-zinc-200 px-2 py-2">Dom</div>
+        <div class="overflow-x-auto">
+          <div class="min-w-[800px]">
+            <div class="grid grid-cols-7 border-l border-t border-zinc-200 text-center text-xs font-semibold uppercase text-zinc-500">
+              <div class="border-b border-r border-zinc-200 px-2 py-2">Lun</div>
+              <div class="border-b border-r border-zinc-200 px-2 py-2">Mar</div>
+              <div class="border-b border-r border-zinc-200 px-2 py-2">Mer</div>
+              <div class="border-b border-r border-zinc-200 px-2 py-2">Gio</div>
+              <div class="border-b border-r border-zinc-200 px-2 py-2">Ven</div>
+              <div class="border-b border-r border-zinc-200 px-2 py-2">Sab</div>
+              <div class="border-b border-r border-zinc-200 px-2 py-2">Dom</div>
+            </div>
+            <div id="calendarGrid" class="grid grid-cols-7 border-l border-zinc-200"></div>
+          </div>
         </div>
-        <div id="calendarGrid" class="grid grid-cols-7 border-l border-zinc-200"></div>
       </div>
     </section>
 
@@ -225,6 +218,32 @@
         <ul id="stuckTasksList" class="grid gap-3"></ul>
       </div>
     </section>
+
+    <section id="ideasView" class="mt-6 hidden">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Bacheca delle Idee</h2>
+        <span id="brainDumpCount" class="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">0 Idee</span>
+      </div>
+      <p class="mb-6 text-sm text-zinc-600">Scrivi qui i tuoi appunti, spunti e task senza scadenza. Trascinali in un giorno nel calendario o pianificali più tardi usando l'apposito bottone.</p>
+
+      <form id="brainDumpForm" class="mb-6 flex gap-2">
+        <label for="brainDumpInput" class="sr-only">Nuova Idea</label>
+        <input
+          id="brainDumpInput"
+          type="text"
+          placeholder="Cosa ti è venuto in mente? Scrivi e premi Invio"
+          class="flex-1 rounded-md border border-zinc-300 px-4 py-3 text-base outline-none transition focus:border-amber-600 focus:ring-2 focus:ring-amber-100"
+        />
+        <button type="submit" class="rounded-md bg-amber-600 px-6 py-3 font-semibold text-white transition hover:bg-amber-700">
+          Aggiungi
+        </button>
+      </form>
+
+      <div data-drop-bucket="brainDump" class="min-h-[200px] rounded-lg border border-dashed border-zinc-300 bg-amber-50/30 p-6">
+        <ul id="brainDumpList" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></ul>
+        <p id="brainDumpEmpty" class="mt-8 text-center text-zinc-500">La bacheca è vuota. Aggiungi una nuova idea in alto!</p>
+      </div>
+    </section>
   </main>
 
   <div id="dayModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-zinc-950/50 px-4">
@@ -257,9 +276,11 @@
     const listTab = document.getElementById("listTab");
     const calendarTab = document.getElementById("calendarTab");
     const dashboardTab = document.getElementById("dashboardTab");
+    const ideasTab = document.getElementById("ideasTab");
     const listView = document.getElementById("listView");
     const calendarView = document.getElementById("calendarView");
     const dashboardView = document.getElementById("dashboardView");
+    const ideasView = document.getElementById("ideasView");
     const calendarTitle = document.getElementById("calendarTitle");
     const calendarGrid = document.getElementById("calendarGrid");
     const prevMonthButton = document.getElementById("prevMonth");
@@ -629,10 +650,12 @@
       const isList = activeView === "list";
       const isCalendar = activeView === "calendar";
       const isDashboard = activeView === "dashboard";
+      const isIdeas = activeView === "ideas";
 
       listView.classList.toggle("hidden", !isList);
       calendarView.classList.toggle("hidden", !isCalendar);
       dashboardView.classList.toggle("hidden", !isDashboard);
+      ideasView.classList.toggle("hidden", !isIdeas);
 
       listTab.className = isList
         ? "flex-1 rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition"
@@ -642,6 +665,9 @@
         : "flex-1 rounded-md px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100";
       dashboardTab.className = isDashboard
         ? "flex-1 rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition"
+        : "flex-1 rounded-md px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100";
+      ideasTab.className = isIdeas
+        ? "flex-1 rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition"
         : "flex-1 rounded-md px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100";
 
       if (isCalendar) {
@@ -1235,6 +1261,7 @@
     listTab.addEventListener("click", () => setActiveView("list"));
     calendarTab.addEventListener("click", () => setActiveView("calendar"));
     dashboardTab.addEventListener("click", () => setActiveView("dashboard"));
+    ideasTab.addEventListener("click", () => setActiveView("ideas"));
 
     prevMonthButton.addEventListener("click", () => {
       calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1);
