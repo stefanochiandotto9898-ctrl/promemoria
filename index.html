@@ -521,6 +521,34 @@
       renderApp();
     }
 
+    function postponeToTomorrowReminder(id) {
+      reminders = reminders.map((reminder) => {
+        if (reminder.id !== id) return reminder;
+
+        const currentDate = reminder.dateTime ? new Date(reminder.dateTime) : new Date();
+        const nextDate = new Date(currentDate);
+        nextDate.setDate(nextDate.getDate() + 1);
+
+        const oldDateStr = reminder.dateTime ? toDateKey(currentDate) : null;
+        const newDateStr = toDateKey(nextDate);
+        let postponedDays = reminder.postponedDays || 0;
+        if (oldDateStr && newDateStr > oldDateStr) {
+          postponedDays += 1;
+        }
+
+        return {
+          ...reminder,
+          dateTime: toDateTimeLocalValue(nextDate),
+          completed: false,
+          alerted: false,
+          postponedDays
+        };
+      });
+
+      saveReminders();
+      renderApp();
+    }
+
     function scheduleReminder(id, dateTime) {
       reminders = reminders.map((reminder) => {
         if (reminder.id !== id) return reminder;
@@ -934,6 +962,13 @@
             postponeButton.textContent = "+15 Minuti";
             postponeButton.addEventListener("click", () => postponeReminder(reminder.id));
             actions.appendChild(postponeButton);
+
+            const postponeTomorrowButton = document.createElement("button");
+            postponeTomorrowButton.type = "button";
+            postponeTomorrowButton.className = "rounded-md border border-teal-700 bg-teal-50 px-3 py-1.5 text-sm font-medium text-teal-800 transition hover:bg-teal-100 focus:outline-none focus:ring-2 focus:ring-teal-300";
+            postponeTomorrowButton.textContent = "A domani";
+            postponeTomorrowButton.addEventListener("click", () => postponeToTomorrowReminder(reminder.id));
+            actions.appendChild(postponeTomorrowButton);
           }
 
           item.appendChild(actions);
