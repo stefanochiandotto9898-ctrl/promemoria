@@ -882,11 +882,13 @@
         column.list.innerHTML = "";
       });
 
-      reminders.forEach((reminder) => {
+      const visibleReminders = reminders.filter((reminder) => !reminder.completed);
+
+      visibleReminders.forEach((reminder) => {
         groups[getReminderBucket(reminder)].push(reminder);
       });
 
-      counter.textContent = `${reminders.length} ${reminders.length === 1 ? "elemento" : "elementi"}`;
+      counter.textContent = `${visibleReminders.length} ${visibleReminders.length === 1 ? "elemento" : "elementi"}`;
 
       Object.entries(groups).forEach(([bucket, bucketReminders]) => {
         const column = columns[bucket];
